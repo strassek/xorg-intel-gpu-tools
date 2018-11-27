@@ -161,3 +161,12 @@ const char *igt_color_range_to_str(enum igt_color_range range)
 	default: igt_assert(0); return NULL;
 	}
 }
+
+const char *igt_pixel_normalize_range_to_str(enum igt_pixel_normalize_range range)
+{
+	switch (range) {
+	case IGT_PIXEL_NORMALIZE_RANGE_0_1: return "0.0 - 1.0";
+	case IGT_PIXEL_NORMALIZE_RANGE_0_255: return "0.0 - 255.0";
+	default: igt_assert(0); return NULL;
+	}
+}

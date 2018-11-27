@@ -70,6 +70,7 @@ typedef struct igt_fb {
 	int height;
 	enum igt_color_encoding color_encoding;
 	enum igt_color_range color_range;
+	enum igt_pixel_normalize_range pixel_normalize_range;
 	uint64_t tiling;
 	uint64_t size;
 	cairo_surface_t *cairo_surface;
@@ -172,6 +173,7 @@ uint32_t igt_drm_format_to_bpp(uint32_t drm_format);
 const char *igt_format_str(uint32_t drm_format);
 bool igt_fb_supported_format(uint32_t drm_format);
 bool igt_format_is_yuv(uint32_t drm_format);
+bool igt_format_is_fp(uint32_t drm_format);
 
 #endif /* __IGT_FB_H__ */
 

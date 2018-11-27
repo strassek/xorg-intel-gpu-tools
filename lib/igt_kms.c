@@ -177,6 +177,7 @@ const char * const igt_plane_prop_names[IGT_NUM_PLANE_PROPS] = {
 	[IGT_PLANE_COLOR_RANGE] = "COLOR_RANGE",
 	[IGT_PLANE_PIXEL_BLEND_MODE] = "pixel blend mode",
 	[IGT_PLANE_ALPHA] = "alpha",
+	[IGT_PLANE_PIXEL_NORMALIZE_RANGE] = "PIXEL_NORMALIZE_RANGE",
 };
 
 const char * const igt_crtc_prop_names[IGT_NUM_CRTC_PROPS] = {
@@ -1776,6 +1777,11 @@ static void igt_plane_reset(igt_plane_t *plane)
 	/* Use default rotation */
 	if (igt_plane_has_prop(plane, IGT_PLANE_ROTATION))
 		igt_plane_set_prop_value(plane, IGT_PLANE_ROTATION, IGT_ROTATION_0);
+
+	/* Use default range */
+	if (igt_plane_has_prop(plane, IGT_PLANE_PIXEL_NORMALIZE_RANGE))
+		igt_plane_set_prop_enum(plane, IGT_PLANE_PIXEL_NORMALIZE_RANGE,
+			igt_pixel_normalize_range_to_str(IGT_PIXEL_NORMALIZE_RANGE_0_1));
 
 	igt_plane_clear_prop_changed(plane, IGT_PLANE_IN_FENCE_FD);
 	plane->values[IGT_PLANE_IN_FENCE_FD] = ~0ULL;
@@ -3711,6 +3717,9 @@ void igt_plane_set_fb(igt_plane_t *plane, struct igt_fb *fb)
 		if (igt_plane_has_prop(plane, IGT_PLANE_COLOR_RANGE))
 			igt_plane_set_prop_enum(plane, IGT_PLANE_COLOR_RANGE,
 				igt_color_range_to_str(fb->color_range));
+		if (igt_plane_has_prop(plane, IGT_PLANE_PIXEL_NORMALIZE_RANGE))
+			igt_plane_set_prop_enum(plane, IGT_PLANE_PIXEL_NORMALIZE_RANGE,
+				igt_pixel_normalize_range_to_str(fb->pixel_normalize_range));
 	} else {
 		igt_plane_set_size(plane, 0, 0);
 

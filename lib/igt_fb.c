@@ -35,6 +35,7 @@
 #include "igt_aux.h"
 #include "igt_color_encoding.h"
 #include "igt_fb.h"
+#include "igt_halffloat.h"
 #include "igt_kms.h"
 #include "igt_matrix.h"
 #include "igt_x86.h"
@@ -126,6 +127,22 @@ static const struct format_desc_struct {
 	  .cairo_id = CAIRO_FORMAT_INVALID,
 	  .pixman_id = PIXMAN_a8b8g8r8,
 	  .num_planes = 1, .plane_bpp = { 32, },
+	},
+	{ .name = "XRGB16161616H", .depth = -1, .drm_id = DRM_FORMAT_XRGB16161616H,
+	  .cairo_id = CAIRO_FORMAT_RGB24,
+	  .num_planes = 1, .plane_bpp = { 64, },
+	},
+	{ .name = "ARGB16161616H", .depth = -1, .drm_id = DRM_FORMAT_ARGB16161616H,
+	  .cairo_id = CAIRO_FORMAT_RGB24,
+	  .num_planes = 1, .plane_bpp = { 64, },
+	},
+	{ .name = "XBGR16161616H", .depth = -1, .drm_id = DRM_FORMAT_XBGR16161616H,
+	  .cairo_id = CAIRO_FORMAT_RGB24,
+	  .num_planes = 1, .plane_bpp = { 64, },
+	},
+	{ .name = "ABGR16161616H", .depth = -1, .drm_id = DRM_FORMAT_ABGR16161616H,
+	  .cairo_id = CAIRO_FORMAT_RGB24,
+	  .num_planes = 1, .plane_bpp = { 64, },
 	},
 	{ .name = "NV12", .depth = -1, .drm_id = DRM_FORMAT_NV12,
 	  .cairo_id = CAIRO_FORMAT_RGB24,
@@ -268,7 +285,8 @@ static void fb_init(struct igt_fb *fb,
 		    uint32_t drm_format,
 		    uint64_t modifier,
 		    enum igt_color_encoding color_encoding,
-		    enum igt_color_range color_range)
+		    enum igt_color_range color_range,
+		    enum igt_pixel_normalize_range pixel_normalize_range)
 {
 	const struct format_desc_struct *f = lookup_drm_format(drm_format);
 
@@ -284,6 +302,7 @@ static void fb_init(struct igt_fb *fb,
 	fb->num_planes = fb_num_planes(fb);
 	fb->color_encoding = color_encoding;
 	fb->color_range = color_range;
+	fb->pixel_normalize_range = pixel_normalize_range;
 
 	for (int i = 0; i < fb->num_planes; i++) {
 		fb->plane_bpp[i] = fb_plane_bpp(fb, i);
@@ -391,7 +410,8 @@ void igt_calc_fb_size(int fd, int width, int height, uint32_t drm_format, uint64
 	struct igt_fb fb;
 
 	fb_init(&fb, fd, width, height, drm_format, tiling,
-		IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE);
+		IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE,
+		IGT_PIXEL_NORMALIZE_RANGE_0_255);
 
 	fb.size = calc_fb_size(&fb);
 
@@ -458,7 +478,7 @@ static int create_bo_for_fb(struct igt_fb *fb)
 {
 	int fd = fb->fd;
 
-	if (fb->tiling || fb->size || fb->strides[0] || igt_format_is_yuv(fb->drm_format)) {
+	if (fb->tiling || fb->size || fb->strides[0] || igt_format_is_yuv(fb->drm_format) || igt_format_is_fp(fb->drm_format)) {
 		uint64_t size;
 
 		size = calc_fb_size(fb);
@@ -555,7 +575,8 @@ int igt_create_bo_with_dimensions(int fd, int width, int height,
 	struct igt_fb fb;
 
 	fb_init(&fb, fd, width, height, format, modifier,
-		IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE);
+		IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE,
+		IGT_PIXEL_NORMALIZE_RANGE_0_255);
 
 	for (int i = 0; i < fb.num_planes; i++)
 		fb.strides[i] = stride;
@@ -913,10 +934,11 @@ igt_create_fb_with_bo_size(int fd, int width, int height,
 	/* FIXME allow the caller to pass these in */
 	enum igt_color_encoding color_encoding = IGT_COLOR_YCBCR_BT709;
 	enum igt_color_range color_range = IGT_COLOR_YCBCR_LIMITED_RANGE;
+	enum igt_pixel_normalize_range pixel_normalize_range = IGT_PIXEL_NORMALIZE_RANGE_0_255;
 	uint32_t flags = 0;
 
 	fb_init(fb, fd, width, height, format, tiling,
-		color_encoding, color_range);
+		color_encoding, color_range, pixel_normalize_range);
 
 	for (int i = 0; i < fb->num_planes; i++)
 		fb->strides[i] = bo_stride;
@@ -1333,7 +1355,8 @@ static void setup_linear_mapping(int fd, struct igt_fb *fb, struct fb_blit_linea
 
 	fb_init(&linear->fb, fb->fd, fb->width, fb->height,
 		fb->drm_format, LOCAL_DRM_FORMAT_MOD_NONE,
-		fb->color_encoding, fb->color_range);
+		fb->color_encoding, fb->color_range,
+		fb->pixel_normalize_range);
 
 	create_bo_for_fb(&linear->fb);
 
@@ -1465,7 +1488,8 @@ static void *igt_fb_create_cairo_shadow_buffer(int fd,
 
 	fb_init(shadow, fd, width, height,
 		DRM_FORMAT_RGB888, LOCAL_DRM_FORMAT_MOD_NONE,
-		IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE);
+		IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE,
+		IGT_PIXEL_NORMALIZE_RANGE_0_255);
 
 	shadow->strides[0] = ALIGN(width * 4, 16);
 	shadow->size = ALIGN(shadow->strides[0] * height,
@@ -1493,7 +1517,7 @@ static void read_rgb(struct igt_vec4 *rgb, const uint8_t *rgb24)
 	rgb->d[0] = rgb24[2];
 	rgb->d[1] = rgb24[1];
 	rgb->d[2] = rgb24[0];
-	rgb->d[3] = 1.0f;
+	rgb->d[3] = 255.0f;
 }
 
 static void write_rgb(uint8_t *rgb24, const struct igt_vec4 *rgb)
@@ -1512,6 +1536,98 @@ struct fb_convert {
 	struct fb_convert_buf	dst;
 	struct fb_convert_buf	src;
 };
+
+/* { R, G, B, X } */
+static const unsigned char swizzle_rgbx[] = { 0, 1, 2, 3 };
+static const unsigned char swizzle_bgrx[] = { 2, 1, 0, 3 };
+
+static const unsigned char *rgbx_swizzle(uint32_t format)
+{
+	switch (format) {
+	default:
+	case DRM_FORMAT_XRGB16161616H:
+	case DRM_FORMAT_ARGB16161616H:
+		return swizzle_bgrx;
+	case DRM_FORMAT_XBGR16161616H:
+	case DRM_FORMAT_ABGR16161616H:
+		return swizzle_rgbx;
+	}
+}
+
+/* convert uint8 [0,255] to fp16 [0.0f,1.0f] */
+static void convert_fp16_to_rgb24(struct fb_convert *cvt)
+{
+	int i, j;
+	const uint8_t *fp16;
+	uint8_t *rgb24 = cvt->dst.ptr;
+	unsigned int rgb24_stride = cvt->dst.fb->strides[0];
+	unsigned int fp16_stride = cvt->src.fb->strides[0];
+	uint8_t *buf = malloc(cvt->src.fb->size);
+	const unsigned char *swz = rgbx_swizzle(cvt->src.fb->drm_format);
+
+	/*
+	 * Reading from the BO is awfully slow because of lack of read caching,
+	 * it's faster to copy the whole BO to a temporary buffer and convert
+	 * from there.
+	 */
+	igt_memcpy_from_wc(buf, cvt->src.ptr, cvt->src.fb->size);
+	fp16 = buf + cvt->src.fb->offsets[0]; // does offset over really get set?
+
+	for (i = 0; i < cvt->dst.fb->height; i++) {
+		for (j = 0; j < cvt->dst.fb->width; j++) {
+			struct igt_vec4 fp32;
+			struct igt_vec4 rgb;
+
+			fp32.d[0] = igt_half_to_float(*(igt_half *)&fp16[(j * 8) + 0]);
+			fp32.d[1] = igt_half_to_float(*(igt_half *)&fp16[(j * 8) + 2]);
+			fp32.d[2] = igt_half_to_float(*(igt_half *)&fp16[(j * 8) + 4]);
+
+			rgb.d[0] = fp32.d[swz[0]];
+			rgb.d[1] = fp32.d[swz[1]];
+			rgb.d[2] = fp32.d[swz[2]];
+
+			write_rgb(&rgb24[j], &rgb);
+		}
+
+		rgb24 += rgb24_stride;
+		fp16 += fp16_stride;
+	}
+
+	free(buf);
+}
+
+/* convert uint8 [0,255] to fp16 [0.0f,1.0f] */
+static void convert_rgb24_to_fp16(struct fb_convert *cvt)
+{
+	int i, j;
+	uint8_t *fp16 = cvt->dst.ptr + cvt->dst.fb->offsets[0];
+	const uint8_t *rgb24 = cvt->src.ptr;
+	unsigned rgb24_stride = cvt->src.fb->strides[0];
+	unsigned fp16_stride = cvt->dst.fb->strides[0];
+	const unsigned char *swz = rgbx_swizzle(cvt->src.fb->drm_format);
+
+	for (i = 0; i < cvt->dst.fb->height; i++) {
+		for (j = 0; j < cvt->dst.fb->width; j++) {
+			struct igt_vec4 rgb;
+			struct igt_vec4 fp32;
+
+			read_rgb(&rgb, &rgb24[j]);
+
+			fp32.d[swz[0]] = rgb.d[0];
+			fp32.d[swz[1]] = rgb.d[1];
+			fp32.d[swz[2]] = rgb.d[2];
+			fp32.d[swz[3]] = rgb.d[3];
+
+			*(igt_half *)&fp16[(j * 8) + 0] = igt_float_to_half(fp32.d[0]);
+			*(igt_half *)&fp16[(j * 8) + 2] = igt_float_to_half(fp32.d[1]);
+			*(igt_half *)&fp16[(j * 8) + 4] = igt_float_to_half(fp32.d[2]);
+			*(igt_half *)&fp16[(j * 8) + 6] = igt_float_to_half(fp32.d[3]);
+		}
+
+		rgb24 += rgb24_stride;
+		fp16 += fp16_stride;
+	}
+}
 
 static void convert_nv12_to_rgb24(struct fb_convert *cvt)
 {
@@ -1910,6 +2026,12 @@ static void fb_convert(struct fb_convert *cvt)
 		case DRM_FORMAT_VYUY:
 			convert_yuyv_to_rgb24(cvt);
 			return;
+		case DRM_FORMAT_XRGB16161616H:
+		case DRM_FORMAT_XBGR16161616H:
+		case DRM_FORMAT_ARGB16161616H:
+		case DRM_FORMAT_ABGR16161616H:
+			convert_fp16_to_rgb24(cvt);
+			return;
 		}
 	} else if (cvt->src.fb->drm_format == DRM_FORMAT_RGB888) {
 		switch (cvt->dst.fb->drm_format) {
@@ -1921,6 +2043,12 @@ static void fb_convert(struct fb_convert *cvt)
 		case DRM_FORMAT_UYVY:
 		case DRM_FORMAT_VYUY:
 			convert_rgb24_to_yuyv(cvt);
+			return;
+		case DRM_FORMAT_XRGB16161616H:
+		case DRM_FORMAT_XBGR16161616H:
+		case DRM_FORMAT_ARGB16161616H:
+		case DRM_FORMAT_ABGR16161616H:
+			convert_rgb24_to_fp16(cvt);
 			return;
 		}
 	}
@@ -2050,6 +2178,7 @@ cairo_surface_t *igt_get_cairo_surface(int fd, struct igt_fb *fb)
 
 	if (fb->cairo_surface == NULL) {
 		if (igt_format_is_yuv(fb->drm_format) ||
+		    igt_format_is_fp(fb->drm_format) ||
 		    ((f->cairo_id == CAIRO_FORMAT_INVALID) &&
 		     (f->pixman_id != PIXMAN_invalid)))
 			create_cairo_surface__convert(fd, fb);
@@ -2268,6 +2397,25 @@ bool igt_format_is_yuv(uint32_t drm_format)
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_VYUY:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/**
+ * igt_format_is_fp
+ * @drm_format: drm fourcc
+ *
+ * Check if the format is floating point.
+ */
+bool igt_format_is_fp(uint32_t drm_format)
+{
+	switch (drm_format) {
+	case DRM_FORMAT_XRGB16161616H:
+	case DRM_FORMAT_ARGB16161616H:
+	case DRM_FORMAT_XBGR16161616H:
+	case DRM_FORMAT_ABGR16161616H:
 		return true;
 	default:
 		return false;

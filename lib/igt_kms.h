@@ -270,6 +270,7 @@ enum igt_atomic_plane_properties {
        IGT_PLANE_COLOR_RANGE,
        IGT_PLANE_PIXEL_BLEND_MODE,
        IGT_PLANE_ALPHA,
+       IGT_PLANE_PIXEL_NORMALIZE_RANGE,
        IGT_NUM_PLANE_PROPS
 };
 
