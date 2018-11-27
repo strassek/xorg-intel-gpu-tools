@@ -180,6 +180,11 @@ static void test_scaler_with_rotation_pipe(data_t *d, enum pipe pipe,
 			igt_rotation_t rot = rotations[i];
 			for (int j = 0; j < plane->drm_plane->count_formats; j++) {
 				unsigned format = plane->drm_plane->formats[j];
+
+				// fp16 doesn't support Y-tiled 90/270 rot
+				if (igt_format_is_fp(format) && (rot == IGT_ROTATION_90 || rot == IGT_ROTATION_270))
+					continue;
+
 				if (igt_fb_supported_format(format) &&
 				    can_rotate(d, format))
 					check_scaling_pipe_plane_rot(d, plane, format,
@@ -213,6 +218,10 @@ static void test_scaler_with_pixel_format_pipe(data_t *d, enum pipe pipe, igt_ou
 
 			for (int j = 0; j < plane->drm_plane->count_formats; j++) {
 				uint32_t format = plane->drm_plane->formats[j];
+
+				// Yf Tiling not supported with fp16
+				if (igt_format_is_fp(format) && tiling == LOCAL_I915_FORMAT_MOD_Yf_TILED)
+					continue;
 
 				if (igt_fb_supported_format(format))
 					check_scaling_pipe_plane_rot(d, plane,
