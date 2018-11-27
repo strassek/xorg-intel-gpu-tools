@@ -124,10 +124,11 @@ static const struct {
 	enum		{ BYTES_PP_1=1,
 				BYTES_PP_2=2,
 				BYTES_PP_4=4,
+				BYTES_PP_8=8,
 				NV12,
 				P010,
 				SKIP4 } bpp;
-	uint32_t	value;
+	uint64_t	value;
 } fillers[] = {
 	{ DRM_FORMAT_C8, 0, BYTES_PP_1, 0xff},
 	{ DRM_FORMAT_RGB565, 0, BYTES_PP_2, 0xffff},
@@ -145,6 +146,11 @@ static const struct {
 
 	{ DRM_FORMAT_XRGB2101010, 0, BYTES_PP_4, 0xffffffff},
 	{ DRM_FORMAT_XBGR2101010, 0, BYTES_PP_4, 0xffffffff},
+
+	{ DRM_FORMAT_XRGB16161616H, 0, BYTES_PP_8, 0x3c003c003c003c00},
+	{ DRM_FORMAT_XBGR16161616H, 0, BYTES_PP_8, 0x3c003c003c003c00},
+	{ DRM_FORMAT_ARGB16161616H, 0, BYTES_PP_8, 0x3c003c003c003c00},
+	{ DRM_FORMAT_ABGR16161616H, 0, BYTES_PP_8, 0x3c003c003c003c00},
 
 	{ DRM_FORMAT_YUYV, 0, BYTES_PP_4, 0x80eb80eb},
 	{ DRM_FORMAT_YVYU, 0, BYTES_PP_4, 0x80eb80eb},
@@ -177,6 +183,7 @@ static bool fill_in_fb(data_t *data, igt_output_t *output, igt_plane_t *plane,
 	signed i, c, writesize;
 	unsigned short* ptemp_16_buf;
 	unsigned int* ptemp_32_buf;
+	unsigned long int* ptemp_64_buf;
 
 	for( i = 0; fillers[i].fourcc != 0; i++ ) {
 		if( fillers[i].fourcc == format )
@@ -184,6 +191,12 @@ static bool fill_in_fb(data_t *data, igt_output_t *output, igt_plane_t *plane,
 	}
 
 	switch (fillers[i].bpp) {
+	case BYTES_PP_8:
+		ptemp_64_buf = (unsigned long int*)data->buf;
+		for (c = 0; c < data->size/8; c++)
+			ptemp_64_buf[c] = fillers[i].value;
+		writesize = data->size;
+		break;
 	case BYTES_PP_4:
 		ptemp_32_buf = (unsigned int*)data->buf;
 		for (c = 0; c < data->size/4; c++)
@@ -291,6 +304,10 @@ static bool setup_fb(data_t *data, igt_output_t *output, igt_plane_t *plane,
 	case SKIP4:
 	case BYTES_PP_4:
 		bpp = 32;
+		break;
+
+	case BYTES_PP_8:
+		bpp = 64;
 		break;
 	}
 
